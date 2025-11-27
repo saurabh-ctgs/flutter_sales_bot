@@ -77,7 +77,8 @@ class ChatUIConfig {
   final IconData sendIcon;
   final IconData attachIcon;
   final IconData menuIcon;
-  final IconData botIcon;
+  final Widget botIcon;
+  final Widget userIcon;
 
   // Spacing
   final double messageBubbleMaxWidth; // as percentage (0.75 = 75%)
@@ -157,7 +158,8 @@ class ChatUIConfig {
     this.sendIcon = Icons.send_rounded,
     this.attachIcon = Icons.attach_file,
     this.menuIcon = Icons.more_vert,
-    this.botIcon = Icons.support_agent,
+    this.botIcon =const Icon(Icons.support_agent,) ,
+    this.userIcon =const Icon(Icons.person,) ,
 
     // Spacing
     this.messageBubbleMaxWidth = 0.75,
@@ -187,7 +189,7 @@ class ChatUIConfig {
 
       // Message Bubble Colors
       userMessageColor: primaryColor,
-      botMessageColor: const Color(0xFFF1F3F5),
+      botMessageColor: Colors.white,
       userTextColor: Colors.white,
       botTextColor: const Color(0xFF212529),
 
@@ -397,7 +399,8 @@ class ChatUIConfig {
     IconData? sendIcon,
     IconData? attachIcon,
     IconData? menuIcon,
-    IconData? botIcon,
+    Widget? botIcon,
+    Widget? userIcon,
     double? messageBubbleMaxWidth,
     EdgeInsets? messageMargin,
     EdgeInsets? inputMargin,
@@ -453,6 +456,7 @@ class ChatUIConfig {
       attachIcon: attachIcon ?? this.attachIcon,
       menuIcon: menuIcon ?? this.menuIcon,
       botIcon: botIcon ?? this.botIcon,
+      userIcon: userIcon ?? this.userIcon,
       messageBubbleMaxWidth: messageBubbleMaxWidth ?? this.messageBubbleMaxWidth,
       messageMargin: messageMargin ?? this.messageMargin,
       inputMargin: inputMargin ?? this.inputMargin,

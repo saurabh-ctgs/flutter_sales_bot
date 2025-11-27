@@ -1,11 +1,10 @@
 // lib/features/chat/presentation/pages/chat_page.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_sales_bot/src/features/chat/data/datasources/service_datasource.dart';
-import 'package:flutter_sales_bot/src/features/chat/data/repositories/chat_repository_impl.dart';
+import 'package:xl_bot/src/features/chat/data/datasources/service_datasource.dart';
+import 'package:xl_bot/src/features/chat/data/repositories/chat_repository_impl.dart';
 import 'package:get/get.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../../../../flutter_sales_bot.dart';
-import '../../../../model/action_button.dart';
+import '../../../../../xl_bot.dart';
 import '../../data/datasources/gemini_datasource.dart';
 import '../../domain/usecases/send_message_usecase.dart';
 import '../controllers/chat_controller.dart';
@@ -72,6 +71,7 @@ class _ChatPageState extends State<ChatPage> {
     final config = uiConfig;
 
     return Scaffold(
+
       body: Container(
         decoration: BoxDecoration(
           gradient: config.useGradientForBackground
@@ -123,20 +123,46 @@ class _ChatPageState extends State<ChatPage> {
                               .slideY(begin: 0.2, end: 0),
 
                           if (message.services != null && message.services!.isNotEmpty) ...[
-                            // Use serviceCardBuilder if provided, otherwise default ServiceCard
-                            ...message.services!.map((service) {
-                              final widgetCard = config.serviceCardBuilder != null
-                                  ? config.serviceCardBuilder!(context, service, config, widget.actionButtons)
-                                  : ServiceCard(service: service, uiConfig: uiConfig, actionButtons: widget.actionButtons);
+                            SizedBox(
+                              height: 450,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                itemCount: message.services!.length,
+                                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                                itemBuilder: (context, serviceIndex) {
+                                  final service = message.services![serviceIndex];
 
-                              return widgetCard
-                                  .animate()
-                                  .fadeIn(duration: config.slideInDuration, delay: 200.ms)
-                                  .slideX(begin: 0.2, end: 0);
-                            }),
-                            // Load More button
+                                  final widgetCard = config.serviceCardBuilder != null
+                                      ? config.serviceCardBuilder!(
+                                    context,
+                                    service,
+                                    config,
+                                    widget.actionButtons,
+                                  )
+                                      : ServiceCard(
+                                    service: service,
+                                    uiConfig: uiConfig,
+                                    actionButtons: widget.actionButtons,
+                                  );
+
+                                  return SizedBox(
+                                    width: 280, // card width in the carousel, tweak as needed
+
+                                    child: widgetCard
+                                        .animate()
+                                        .fadeIn(duration: config.slideInDuration, delay: 200.ms)
+                                        .slideX(begin: 0.2, end: 0),
+                                  );
+                                },
+                              ),
+                            ),
+
+                            // Load More button under the carousel
                             _buildLoadMoreButton(context, message),
                           ],
+
+
                         ],
                       );
                     },
@@ -223,11 +249,7 @@ class _ChatPageState extends State<ChatPage> {
                   : uiConfig.appBarIconColor,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              uiConfig.botIcon,
-              color: Colors.white,
-              size: 24,
-            ),
+            child: uiConfig.botIcon,
           ),
           const SizedBox(width: 12),
           Expanded(

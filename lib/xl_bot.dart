@@ -1,4 +1,4 @@
-library flutter_sales_bot;
+library xl_bot;
 
 /// Public exports
 export 'src/api.dart';

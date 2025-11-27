@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
-import '../../../../core/utils/service_matcher.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../datasources/gemini_datasource.dart';
@@ -19,37 +18,68 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Future<MessageEntity> sendMessage(String message,
-      List<dynamic> services,) async {
+      List<dynamic> services, {List<Map<String, dynamic>>? conversationHistory}) async {
     try {
       developer.log('➡️ sendMessage called', name: 'ChatRepository');
 
-      // 1️⃣ Send user message to Gemini (get full model reply)
+      // 1️⃣ Send user message to Gemini with conversation history
       developer.log('Sending to Gemini: $message', name: 'ChatRepository');
-      final res = await geminiDataSource.sendMessage(message);
+      final res = await geminiDataSource.sendMessage(message, conversationHistory: conversationHistory);
       developer.log('From Gemini: $res', name: 'ChatRepository');
 
-      final geminiResponse = BotResponseModel.fromJson(jsonDecode(res));
+      final responseJson = jsonDecode(res);
 
+      // ✅ CHECK IF API RETURNED AN ERROR
+      if (!responseJson['success'] ?? false) {
+        final errorMessage = responseJson['message'] ?? 'Unknown error occurred';
+        throw Exception(errorMessage);
+      }
 
+      final geminiResponse = BotResponseModel.fromJson(responseJson);
+
+      // Extract message and function call from response
+      final responseData = geminiResponse.data;
+      final botData = responseData;
+
+      String messageContent = '';
+      FunctionCall? functionCall;
+      Extra? extra;
+      Map<String, dynamic>? rawContent;
+
+      // Handle case where there's a text response
+      if (botData?.content != null) {
+        messageContent = botData!.content!.text;
+        // Store raw content for conversation history
+        rawContent = {
+          'parts': botData.content!.parts.map((p) => {'text': p.text}).toList(),
+          'role': botData.content!.role,
+        };
+      }
+
+      // Handle function call
+      if (botData?.extra?.functionCall != null) {
+        functionCall = botData!.extra!.functionCall;
+        developer.log('Function call detected: ${functionCall!.name} with args: ${functionCall.args}',
+            name: 'ChatRepository');
+      }
+
+      // Extract extra data
+      extra = botData?.extra;
 
       return MessageEntity(
-        id: DateTime
-            .now()
-            .millisecondsSinceEpoch
-            .toString(),
-        content: geminiResponse.data?.botData.message??'I\'m sorry',
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        content: messageContent,
         type: MessageType.bot,
         timestamp: DateTime.now(),
-        // services: searchResults,
-        // searchQuery: ,
-        // Store query for pagination
-        categoryData: geminiResponse.data?.botData.extra, // Store category data for UI display
+        categoryData: extra,
+        functionCall: functionCall,
+        rawContent: rawContent,
       );
     } catch (e, st) {
       developer.log('❌ sendMessage failed: $e', name: 'ChatRepository',
           error: e,
           stackTrace: st);
-      throw Exception('Failed to send message: $e');
+      rethrow; // ✅ RETHROW TO LET CONTROLLER HANDLE
     }
   }
 

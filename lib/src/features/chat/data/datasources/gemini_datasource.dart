@@ -1,23 +1,30 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:developer' as developer;
-import '../../../../../flutter_sales_bot.dart';
+import '../../../../../xl_bot.dart';
 import '../../../../core/constants/app_const.dart';
 
 abstract class GeminiDataSource {
-  Future<String> sendMessage(String message);
+  Future<String> sendMessage(String message, {List<Map<String, dynamic>>? conversationHistory});
 }
 
 class GeminiDataSourceImpl implements GeminiDataSource {
   @override
-  Future<String> sendMessage(String message) async {
+  Future<String> sendMessage(String message, {List<Map<String, dynamic>>? conversationHistory}) async {
     final url = AppConst.supabaseFunctionUrl;
     final bearer = AppConst.supabaseServiceRoleToken;
     try {
-      final body = jsonEncode({
+      final bodyMap = <String, dynamic>{
         'accessToken': SalesBotConfigManager.instance.config.projectId,
         'message': message,
-      });
+      };
+
+      // Add conversation history if provided
+      if (conversationHistory != null && conversationHistory.isNotEmpty) {
+        bodyMap['conversationHistory'] = conversationHistory;
+      }
+
+      final body = jsonEncode(bodyMap);
 
       final response = await http.post(
         Uri.parse(url),
@@ -67,7 +74,7 @@ class GeminiDataSourceImpl implements GeminiDataSource {
           });
         }
       }
-    } catch (e, st) {
+    } catch (e, _) {
       developer.log(
         '❌ $e',
         name: 'FLUTTER_SALES_BOT',

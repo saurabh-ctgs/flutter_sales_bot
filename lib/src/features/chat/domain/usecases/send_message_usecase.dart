@@ -6,7 +6,7 @@ class SendMessageUseCase {
 
   SendMessageUseCase(this.repository);
 
-  Future<MessageEntity> call(String message, List<dynamic> services) {
-    return repository.sendMessage(message, services);
+  Future<MessageEntity> call(String message, List<dynamic> services, {List<Map<String, dynamic>>? conversationHistory}) {
+    return repository.sendMessage(message, services, conversationHistory: conversationHistory);
   }
 }

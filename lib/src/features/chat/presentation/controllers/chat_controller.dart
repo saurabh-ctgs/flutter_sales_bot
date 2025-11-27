@@ -55,12 +55,17 @@ class ChatController extends GetxController {
     if (text.isEmpty) return;
 
     // Add user message
-    messages.add(MessageEntity(
+    final userMessage = MessageEntity(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       content: text,
       type: MessageType.user,
       timestamp: DateTime.now(),
-    ));
+      rawContent: {
+        'parts': [{'text': text}],
+        'role': 'user',
+      },
+    );
+    messages.add(userMessage);
 
     messageController.clear();
     _scrollToBottom();
@@ -75,7 +80,10 @@ class ChatController extends GetxController {
     ));
 
     try {
-      final response = await sendMessageUseCase(text, services);
+      // Build conversation history from previous messages
+      final conversationHistory = _buildConversationHistory();
+
+      final response = await sendMessageUseCase(text, services, conversationHistory: conversationHistory);
 
       // Remove typing indicator
       messages.removeWhere((m) => m.id == 'typing');
@@ -85,88 +93,136 @@ class ChatController extends GetxController {
         _paginationState[response.id] = 1; // Start at offset 1
       }
 
-      // Add bot response
-      messages.add(response);
+      // Handle function call if present
+      if (response.functionCall != null) {
+        messages.add(MessageEntity(
+          id: 'typing',
+          content: '',
+          type: MessageType.bot,
+          timestamp: DateTime.now(),
+          isTyping: true,
+        ));
+        developer.log('Function call detected: ${response.functionCall!.name}', name: 'ChatController');
+        await _handleFunctionCall(response);
+        messages.removeWhere((m) => m.id == 'typing');
+      } else {
+        // Add bot response only if no function call
+        messages.add(response);
+      }
 
       _scrollToBottom();
     } catch (e) {
       messages.removeWhere((m) => m.id == 'typing');
-      Get.snackbar(
-        'Error',
-        'Failed to get response. Please try again.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      developer.log('❌ Error sending message: $e', name: 'ChatController');
+
+      // ✅ EXTRACT ERROR MESSAGE
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring('Exception: '.length);
+      }
+
+      // ✅ DISPLAY ERROR AS BOT MESSAGE IN CHAT
+      messages.add(MessageEntity(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        content: '❌ Error: $errorMessage',
+        type: MessageType.bot,
+        timestamp: DateTime.now(),
+      ));
+
+      _scrollToBottom();
     }
   }
 
-  /// Handle category item selection - fetch services for the selected item
-  Future<void> selectCategoryItem(String item) async {
-    if (isLoadingCategory.value) return;
+  /// Build conversation history from previous messages for API request
+  List<Map<String, dynamic>> _buildConversationHistory() {
+    final history = <Map<String, dynamic>>[];
 
-    isLoadingCategory.value = true;
+    for (var message in messages) {
+      // Skip typing indicators and welcome message
+      if (message.isTyping || message.id == 'typing') continue;
+
+      if (message.type == MessageType.user) {
+        history.add({
+          'parts': [{'text': message.content}],
+          'role': 'user',
+        });
+      } else if (message.type == MessageType.bot && message.rawContent != null) {
+        // Use rawContent if available for accurate history
+        history.add(message.rawContent!);
+      } else if (message.type == MessageType.bot && message.content.isNotEmpty) {
+        // Fallback: construct from content
+        history.add({
+          'parts': [{'text': message.content}],
+          'role': 'model',
+        });
+      }
+    }
+
+    developer.log('Built conversation history with ${history.length} messages', name: 'ChatController');
+    return history;
+  }
+
+  /// Handle function call from API response
+  Future<void> _handleFunctionCall(MessageEntity responseData) async {
     try {
-      developer.log('Category item selected: $item', name: 'ChatController');
+      developer.log('Handling function call: ${responseData.functionCall!.name}', name: 'ChatController');
 
-      // Add user message showing selected item
-      messages.add(MessageEntity(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        content: item,
-        type: MessageType.user,
-        timestamp: DateTime.now(),
-      ));
+      if (responseData.functionCall!.name == 'search') {
+        // Extract search parameters
+        final args = responseData.functionCall!.args;
+        final query = args['query']?.toString() ?? '';
+        final age = args['age']?.toString() ?? '';
+        final gender = args['gender']?.toString() ?? '';
 
+        developer.log('Search params - query: $query, age: $age, gender: $gender', name: 'ChatController');
 
-      // Add typing indicator
-      messages.add(MessageEntity(
-        id: 'typing',
-        content: '',
-        type: MessageType.bot,
-        timestamp: DateTime.now(),
-        isTyping: true,
-      ));
+        // Perform the search
+        if (query.isNotEmpty) {
+          final searchResults = await chatRepository.loadMoreServices(
+            query,
+            limit: 5,
+            offset: 1,
+          );
 
-      // Fetch services for the selected item
-      developer.log('Fetching services for: $item', name: 'ChatController');
+          // Add bot response with search results
+          final response = MessageEntity(
+            id: responseData.id,
+            content: searchResults.isNotEmpty ?responseData.content.isNotEmpty?responseData.content:'Ok, I found some result for you':'We are sorry, We could not find any results for your search.',
+            type: MessageType.bot,
+            timestamp: DateTime.now(),
+            services: searchResults,
+            searchQuery: query,
+          );
 
-      // Create a search response for the category item
-      final searchResults = await chatRepository.loadMoreServices(
-        item,
-        limit: 5,
-        offset: 1,
-      );
+          messages.add(response);
+          _paginationState[responseData.id] = 1;
 
-      // Remove typing indicator
-      messages.removeWhere((m) => m.id == 'typing');
+          developer.log('Added ${searchResults.length} search results', name: 'ChatController');
+        }
+      }
 
-      // Create bot message with services
-      final response = MessageEntity(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        content: 'Great! Here are the $item I found:',
-        type: MessageType.bot,
-        timestamp: DateTime.now(),
-        services: searchResults,
-        searchQuery: item, // Store for pagination
-      );
-
-      // Initialize pagination for this message
-      _paginationState[response.id] = 1;
-
-      messages.add(response);
-      _scrollToBottom();
-
-      developer.log('Services loaded for category item: ${searchResults.length} results', name: 'ChatController');
+      // _scrollToBottom();
     } catch (e) {
-      developer.log('Error selecting category item: $e', name: 'ChatController');
-      messages.removeWhere((m) => m.id == 'typing');
-      Get.snackbar(
-        'Error',
-        'Failed to load services. Please try again.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    } finally {
-      isLoadingCategory.value = false;
+      developer.log('❌ Error handling function call: $e', name: 'ChatController');
+
+      // ✅ DISPLAY FUNCTION ERROR IN CHAT
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring('Exception: '.length);
+      }
+
+      messages.add(MessageEntity(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        content: '❌ Error executing search: $errorMessage',
+        type: MessageType.bot,
+        timestamp: DateTime.now(),
+      ));
+
+      _scrollToBottom();
     }
   }
+
+
 
   /// Load more services for a specific message
   Future<void> loadMoreServices(String messageId) async {
@@ -222,12 +278,22 @@ class ChatController extends GetxController {
 
       }
     } catch (e) {
-      developer.log('Error loading more services: $e', name: 'ChatController');
-      Get.snackbar(
-        'Error',
-        'Failed to load more services. Please try again.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      developer.log('❌ Error loading more services: $e', name: 'ChatController');
+
+      // ✅ DISPLAY PAGINATION ERROR IN CHAT
+      String errorMessage = e.toString();
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring('Exception: '.length);
+      }
+
+      messages.add(MessageEntity(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        content: '❌ Could not load more services: $errorMessage',
+        type: MessageType.bot,
+        timestamp: DateTime.now(),
+      ));
+
+      _scrollToBottom();
     } finally {
       isLoadingMore.value = false;
     }

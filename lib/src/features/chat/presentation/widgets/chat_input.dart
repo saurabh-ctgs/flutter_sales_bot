@@ -29,6 +29,7 @@ class _ChatInputState extends State<ChatInput> {
     final hasText = widget.controller.messageController.text.trim().isNotEmpty;
 
     return Container(
+      color: Colors.transparent,
       padding: const EdgeInsets.all(12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -57,84 +58,80 @@ class _ChatInputState extends State<ChatInput> {
           const SizedBox(width: 10),
 
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.grey.shade300),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-
-              // ---------------------
-              //  COLUMN LAYOUT
-              // ---------------------
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ---------------------
-                  //  SMALL MODEL SELECTOR (using showMenu for tight control)
-                  // ---------------------
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      // Visual is small, but padding provides comfortable hit area.
-                      InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTapDown: (TapDownDetails details) async {
-                          // Show the menu at the tap position (no extra padding)
-                          final selected = await showMenu<String>(
-                            context: context,
-                            position: RelativeRect.fromRect(
-                              details.globalPosition & const Size(1, 1),
-                              Offset.zero & MediaQuery.of(context).size,
-                            ),
-                            items: const [
-                              PopupMenuItem(value: "Gemini", child: Text("Gemini")),
-                              PopupMenuItem(value: "Chat-GPT", child: Text("Chat-GPT")),
-                            ],
-                            elevation: 4,
-                          );
-
-                          if (selected != null) {
-                            setState(() => selectedModel = selected);
-                          }
-                        },
-                        child: Container(
-                          // small visible chip
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade300),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ---------------------
+                //  SMALL MODEL SELECTOR (using showMenu for tight control)
+                // ---------------------
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Visual is small, but padding provides comfortable hit area.
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTapDown: (TapDownDetails details) async {
+                        // Show the menu at the tap position (no extra padding)
+                        final selected = await showMenu<String>(
+                          context: context,
+                          position: RelativeRect.fromRect(
+                            details.globalPosition & const Size(1, 1),
+                            Offset.zero & MediaQuery.of(context).size,
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                selectedModel,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.keyboard_arrow_down, size: 14),
-                            ],
-                          ),
+                          items: const [
+                            PopupMenuItem(value: "Gemini", child: Text("Gemini")),
+                            PopupMenuItem(value: "Chat-GPT", child: Text("Chat-GPT")),
+                          ],
+                          elevation: 4,
+                        );
+
+                        if (selected != null) {
+                          setState(() => selectedModel = selected);
+                        }
+                      },
+                      child: Container(
+                        // small visible chip
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
                         ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              selectedModel,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.keyboard_arrow_down, size: 14),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 6),
+
+                // ---------------------
+                //  TEXT FIELD + MIC/SEND
+                // ---------------------
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10,vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.grey.shade300),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 6),
-
-                  // ---------------------
-                  //  TEXT FIELD + MIC/SEND
-                  // ---------------------
-                  Row(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Expanded(
@@ -145,7 +142,7 @@ class _ChatInputState extends State<ChatInput> {
                             hintText: "Ask something…",
                             border: InputBorder.none,
                             isDense: true, // tighter vertical layout
-                            contentPadding: EdgeInsets.zero,
+                            contentPadding: EdgeInsets.only(bottom: 5,top: 0),
                           ),
                           textCapitalization: TextCapitalization.sentences,
                           onSubmitted: (_) => widget.controller.sendMessage(),
@@ -183,8 +180,8 @@ class _ChatInputState extends State<ChatInput> {
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],

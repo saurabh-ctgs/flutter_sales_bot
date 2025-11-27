@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_sales_bot/flutter_sales_bot.dart';
+import 'package:xl_bot/xl_bot.dart';
 
 void main() {
   // Initialize SalesBotConfig once at app startup
   final config = SalesBotConfig(
-    projectId: 'fltai_y9-VOYfSbPAUyhrNx3qI-tdipGA2SZ6x',
+    projectId: 'fltai_Lpkt4kpb5o1RcPVe85ZCxgC44hGLlt3n',
     searchApis: [
       SearchApi(name: 'Service provider', searchUrl: 'https://cityprofessionals.connivia.com/api/v1/customer/service/search'),
       SearchApi(name: 'Blood test', searchUrl: 'https://911.connivia.com/api/patient/v2/fetch-all-packages')
@@ -35,34 +35,13 @@ class ExampleApp extends StatelessWidget {
           uiConfig: ChatUIConfig.light(
 
           ).copyWith(
+
+            botIcon: const Icon(Icons.support_agent, size: 28),
             onTapDefaultActionButton: (value) {
               // Handle action button tap
-              debugPrint('Action button tapped: $value');
+              debugPrint('Action button : ${value.toJson()}');
             },
           ),
-
-          actionButtons: [
-            ActionButton(
-              widget: Container(color: Colors.red,height: 20,width: double.maxFinite,),
-              onTap: ( value) {
-                print( 'Action 1 tapped with value: $value');
-              },
-            ),
-            ActionButton(
-                widget: const Icon(Icons.help_outline, size: 24, color: Colors.white),
-                onTap: ( value) {
-                  print( 'Action 2 tapped with value: $value');
-                }
-
-            ),
-            ActionButton(
-                widget: const Icon(Icons.help_outline, size: 24, color: Colors.white),
-                onTap: ( value) {
-                  print( 'Action 2 tapped with value: $value');
-                }
-
-            ),
-          ],
         ),
       ),
     );

@@ -11,35 +11,45 @@ and the Flutter guide for
 [developing packages and plugins](https://flutter.dev/to/develop-packages).
 -->
 
-# flutter_sales_bot
+# Xl Bot
 
-A Flutter chat/support bot UI and integration helper. This package provides a lightweight chat UI component and helpers to wire it to search/service APIs and an LLM (Gemini) datasource. It centralizes configuration via `SalesBotConfig` so your app and the package can access settings globally after a single initialization.
+A Flutter chat/support/sales bot UI and integration helper. This package provides a lightweight, fully customizable chat UI component with helpers to wire it to search/service APIs for seamless integration.
 
 ## Features
 
-- Floating chat button (`SalesBotButton`) that opens a chat-style UI.
-- Global configuration via `SalesBotConfig` and `SalesBotConfigManager`.
-- Helpers for registering multiple `SearchApi` endpoints and building paginated search URLs.
-- Example integration showing how to parse embedded JSON from Gemini LLM responses and show tappable item options.
+- **Floating Chat Button** (`SalesBotButton`) - Customizable floating action button that opens a chat UI
+- **Global Configuration** - Easy setup via `SalesBotConfig` and `SalesBotConfigManager`
+- **Theme Customization** - Complete UI theming with `ChatUIConfig` (light/dark themes, custom colors, typography, dimensions)
 
-## Getting started
+
+## Table of Contents
+
+- [Getting Started](#getting-started)
+- [Installation](#installation)
+- [Quick Setup](#quick-setup)
+- [Integration Guide](#integration-guide)
+- [UI Customization](#ui-customization)
+- [Advanced Configuration](#advanced-configuration)
+- [Examples](#examples)
+
+## Getting Started
 
 ### Prerequisites
 
-- Flutter and Dart SDK matching the package `pubspec.yaml` environment (Dart >= 3.9.2).
-- Run `flutter pub get` in the package and example directories to fetch dependencies.
+- Flutter SDK: `>=1.17.0`
+- Dart SDK: `^3.9.2`
+- Run `flutter pub get` to fetch dependencies
 
-### Install
+### Installation
 
-If you're using this package locally in a project, add it as a path dependency in your app's `pubspec.yaml`. If published, add the package from pub.dev.
-
-Example (local path):
+Add the package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_sales_bot:
-    path: ../flutter_sales_bot
+  flutter_sales_bot: ^0.0.1
 ```
+
+
 
 Then run:
 
@@ -47,24 +57,26 @@ Then run:
 flutter pub get
 ```
 
-## Quick initialization (required)
+## Quick Setup
 
-You must initialize the global configuration exactly once before using the package UI or datasources. Do this in `main()` prior to calling `runApp(...)`.
+### Step 1: Initialize Configuration (Required)
+
+Initialize the configuration once in your `main()` function **before** calling `runApp()`:
 
 ```dart
-import 'package:flutter_sales_bot/flutter_sales_bot.dart';
+import 'package:xl_bot/flutter_sales_bot.dart';
 
 void main() {
   final config = SalesBotConfig(
-    projectId: 'your_project_id_here',
+    projectId: 'your_project_id',
     searchApis: [
       SearchApi(
-        name: 'Service provider',
-        searchUrl: 'https://cityprofessionals.example.com/api/v1/customer/service/search',
+        name: 'Services',
+        searchUrl: 'https://api.example.com/services/search',
       ),
       SearchApi(
-        name: 'Blood test',
-        searchUrl: 'https://911.example.com/api/patient/v2/fetch-all-packages',
+        name: 'Products',
+        searchUrl: 'https://api.example.com/products/search',
       ),
     ],
     defaultTimeout: const Duration(seconds: 8),
@@ -72,165 +84,478 @@ void main() {
   );
 
   SalesBotConfigManager.initialize(config);
-
   runApp(const MyApp());
 }
 ```
 
-After this call you can access the config anywhere with:
+### Step 2: Add the Chat Button
+
+Add the `SalesBotButton` to your scaffold:
 
 ```dart
-final config = SalesBotConfigManager.instance.config;
-```
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-## Using `SearchApi` and pagination
-
-Each `SearchApi` contains a `searchUrl` and helper methods to build paginated search URLs.
-
-- `SearchApi.buildSearchUrl({int limit = 10, int offset = 1})` appends `?limit=...&offset=...` to the configured `searchUrl`.
-
-Important: confirm whether your backend expects `offset` to be a page number (1-based) or an item offset (0-based). Adjust usage accordingly.
-
-Example fetch using `limit` and `offset`:
-
-```dart
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-
-Future<List<dynamic>> fetchServicesPage(SearchApi api, {int limit = 10, required int offset, String? query}) async {
-  var url = api.buildSearchUrl(limit: limit, offset: offset);
-  // If your backend accepts a query param, append it. Otherwise send in request body as required.
-  if (query != null) {
-    url = '$url&query=${Uri.encodeComponent(query)}';
-  }
-  final response = await http.get(Uri.parse(url)).timeout(SalesBotConfigManager.instance.config.defaultTimeout);
-  if (response.statusCode != 200) throw Exception('HTTP ${response.statusCode}');
-  final data = jsonDecode(response.body) as Map<String, dynamic>;
-  return (data['items'] as List<dynamic>?) ?? [];
-}
-```
-
-Pagination strategy (recommended):
-- Choose a page size `limit` (e.g., 10 or 20).
-- Start with `offset = 1` (or `0` if your backend is 0-based) and increment `offset` to load more pages.
-- If your backend returns fewer results than `limit`, treat that as the end of results.
-
-## Handling Gemini LLM responses with embedded JSON
-
-The example Gemini responses may include an embedded JSON section between markers like:
-
-```
-===EXTRA_JSON_START===
-{"category":"cleaning","items":["deep cleaning","regular cleaning",...]}
-===EXTRA_JSON_END===
-```
-
-Use a robust extractor to parse that JSON safely:
-
-```dart
-import 'dart:convert';
-
-Map<String, dynamic>? extractEmbeddedJson(String text) {
-  const startMarker = '===EXTRA_JSON_START===';
-  const endMarker = '===EXTRA_JSON_END===';
-  final start = text.indexOf(startMarker);
-  final end = text.indexOf(endMarker);
-  if (start == -1 || end == -1 || end <= start) return null;
-  final jsonText = text.substring(start + startMarker.length, end).trim();
-  try {
-    return jsonDecode(jsonText) as Map<String, dynamic>;
-  } catch (e) {
-    // handle parse error
-    return null;
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(title: const Text('My App')),
+        body: const Center(child: Text('Welcome')),
+        floatingActionButton: SalesBotButton(
+          icon: const Icon(Icons.support_agent, size: 28),
+          tooltip: 'Open Chat',
+        ),
+      ),
+    );
   }
 }
 ```
 
-If the extracted JSON includes a `category` and an `items` array, present the `items` as tappable options in the chat UI. When the user taps an option, call your service `SearchApi` with the chosen item as the query and load the first results page.
+## Integration Guide
 
-## Example UI flow: show items and load services
+### SalesBotConfig
 
-1. Extract `items` from Gemini response.
-2. Render them as buttons or chips in the chat bubble (e.g., `ActionChip`, `OutlinedButton`).
-3. On item tap, call a paginated fetch using the matching `SearchApi`.
-4. Present results as cards/messages in the chat.
-5. If more pages exist, show a "Load more" button. On tap, increment `offset` and fetch the next page.
+The `SalesBotConfig` class manages all configuration for the chat bot.
 
-Minimal example for handling item taps and pagination logic:
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `projectId` | `String` | Yes | Unique identifier for your project |
+| `searchApis` | `List<SearchApi>` | Yes | List of API endpoints (minimum 1) |
+| `defaultTimeout` | `Duration` | No | Timeout for API requests (default: 8s) |
+| `topKeywordCount` | `int` | No | Max keywords to extract (default: 5) |
+| `onBeforeSearch` | `BeforeSearchCallback` | No | Callback before search is performed |
+| `onResult` | `OnResultCallback` | No | Callback when search results arrive |
+
+#### Example with Callbacks
 
 ```dart
-int currentOffset = 1;
-const int pageSize = 10;
-bool hasMore = true;
+final config = SalesBotConfig(
+  projectId: 'my_project',
+  searchApis: [
+    SearchApi(
+      name: 'Hospital Search',
+      searchUrl: 'https://api.example.com/hospitals',
+    ),
+  ],
+  defaultTimeout: const Duration(seconds: 10),
+  topKeywordCount: 3,
+  onBeforeSearch: (query, keywords) {
+    print('Searching for: $query');
+    print('Keywords: $keywords');
+  },
+  onResult: (apiName, result) {
+    print('Got results from: $apiName');
+    print('Result: $result');
+  },
+);
 
-Future<void> loadServices(SearchApi api, String query, {bool reset = false}) async {
-  if (reset) {
-    currentOffset = 1;
-    hasMore = true;
-  }
-  if (!hasMore) return;
-  final items = await fetchServicesPage(api, limit: pageSize, offset: currentOffset, query: query);
-  // add items to chat UI
-  if (items.length < pageSize) hasMore = false;
-  currentOffset += 1; // If backend expects page numbers
-}
+SalesBotConfigManager.initialize(config);
 ```
 
-## Using the UI widget (`SalesBotButton`)
+### SearchApi
 
-Add the floating chat button to your scaffold. The `example/` app demonstrates this usage. You can pass UI customization via `ChatUIConfig` and action buttons via `ActionButton`.
+Configure search endpoints for your services.
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `String` | Display name for this API |
+| `searchUrl` | `String` | Base URL for searches |
+| `searchParamsKey` | `List<String>` | URL parameter keys (optional) |
+
+#### Example
 
 ```dart
-floatingActionButton: SalesBotButton(
-  icon: const Icon(Icons.support_agent, size: 28),
-  useGradient: true,
-  size: 64,
-  tooltip: 'Get Support',
-  uiConfig: ChatUIConfig.light().copyWith(
-    onTapDefaultActionButton: (value) { /* handle */ },
-  ),
-  actionButtons: [ /* ... */ ],
+SearchApi(
+  name: 'Product Search',
+  searchUrl: 'https://api.example.com/products/search',
+  searchParamsKey: ['category', 'filter'],
+)
+```
+
+## UI Customization
+
+### Using Themes
+
+#### Light Theme (Default)
+
+```dart
+SalesBotButton(
+  uiConfig: ChatUIConfig.light(),
+  icon: const Icon(Icons.chat),
 ),
 ```
 
-## Troubleshooting: UI render issues in cards
+#### Dark Theme
 
-Common causes and fixes:
-
-- Overflow in `Column` with unbounded `ListView`: wrap the scrollable with `Expanded` or set `shrinkWrap: true` on the inner list and a fixed height.
-- Long text in `Row` causing overflow: wrap text in `Flexible` or `Expanded`.
-- Nested scroll views: prefer a single scrollable or make inner scrollables non-scrollable with `NeverScrollableScrollPhysics()`.
-
-Use the Flutter Inspector and console errors (e.g., "A RenderFlex overflowed by ...") to find root causes.
-
-## Running the example
-
-From the package root:
-
-```bash
-flutter pub get
-cd example
-flutter pub get
-flutter run
+```dart
+SalesBotButton(
+  uiConfig: ChatUIConfig.dark(),
+  icon: const Icon(Icons.chat),
+),
 ```
 
-If building on iOS (macOS):
+### Complete Customization with copyWith
 
-```bash
-cd example/ios
-pod install
+Customize all aspects of the UI using `copyWith()`:
+
+```dart
+floatingActionButton: SalesBotButton(
+  uiConfig: ChatUIConfig.light().copyWith(
+    // Colors
+    primaryColor: Color(0xFF6366F1),
+    secondaryColor: Color(0xFF8B5CF6),
+    backgroundColor: Color(0xFFF8F9FA),
+    
+    // Message styling
+    userMessageColor: Color(0xFF6366F1),
+    botMessageColor: Colors.white,
+    userTextColor: Colors.white,
+    botTextColor: Color(0xFF212529),
+    
+    // Input field
+    inputBackgroundColor: Color(0xFFF1F3F5),
+    inputTextColor: Color(0xFF212529),
+    sendButtonColor: Color(0xFF6366F1),
+    
+    // App bar
+    appBarBackgroundColor: Color(0xFF6366F1),
+    appBarTextColor: Colors.white,
+    
+    // Dimensions
+    messageBorderRadius: 16.0,
+    inputBorderRadius: 24.0,
+    serviceCardBorderRadius: 12.0,
+    
+    // Animations
+    fadeInDuration: Duration(milliseconds: 300),
+    slideInDuration: Duration(milliseconds: 400),
+    
+    // Gradients
+    useGradientForUserMessages: true,
+    useGradientForBackground: true,
+    useGradientForAppBar: true,
+    useGradientForSendButton: true,
+    
+    // Typography
+    appBarTitleStyle: TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+    ),
+    messageTextStyle: TextStyle(fontSize: 16),
+    inputTextStyle: TextStyle(fontSize: 16),
+    
+    // Icons
+    sendIcon: Icons.send_rounded,
+    botIcon: Icon(Icons.support_agent),
+    userIcon: Icon(Icons.person),
+    
+    // Callbacks
+    onTapDefaultActionButton: (value) {
+      print('Action tapped: ${value.toJson()}');
+    },
+  ),
+),
 ```
 
-## Next steps & suggestions
+### Advanced UI Customization
 
-- Add a reusable `GeminiJsonExtractor` utility class and an `ItemsOptionsWidget` to render LLM-returned choices.
-- Add tests: unit tests for JSON extraction and integration tests for pagination.
-- Confirm backend query/offset conventions (page number vs item offset) and adapt `offset` increment logic accordingly.
+#### Custom Button Styling
 
-## Contributing
+```dart
+SalesBotButton(
+  // Button appearance
+  icon: const Icon(Icons.support_agent, size: 28),
+  backgroundColor: const Color(0xFF6366F1),
+  foregroundColor: Colors.white,
+  size: 64,
+  elevation: 8,
+  
+  // Gradient effect
+  useGradient: true,
+  
+  // Position
+  margin: const EdgeInsets.all(16),
+  
+  // Behavior
+  tooltip: 'Get Support',
+  onPressed: () {
+    // Custom navigation or action
+  },
+  
+  // UI Config
+  uiConfig: ChatUIConfig.light(),
+)
+```
 
-Contributions are welcome. Please open an issue or a pull request with a clear description and a minimal reproduction when applicable.
+#### Custom Message Bubble
 
----
+```dart
+final config = ChatUIConfig.light().copyWith(
+  messageBubbleBuilder: (context, message, controller, config) {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: message.isUserMessage 
+          ? config.userMessageColor 
+          : config.botMessageColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        message.content,
+        style: TextStyle(
+          color: message.isUserMessage 
+            ? config.userTextColor 
+            : config.botTextColor,
+        ),
+      ),
+    );
+  },
+);
+```
 
-If you want, I can also add the `GeminiJsonExtractor` and a small `ItemsOptionsWidget` into the `example/` app and run the example to verify behavior — tell me which to add next and I'll implement and validate it.
+#### Custom Service Card
+
+```dart
+final config = ChatUIConfig.light().copyWith(
+  serviceCardBuilder: (context, service, config, buttons) {
+    return Card(
+      child: Column(
+        children: [
+          Text(service.title),
+          Text('\$${service.price}'),
+          if (buttons != null) ...buttons,
+        ],
+      ),
+    );
+  },
+);
+```
+
+### ChatUIConfig Properties Reference
+
+#### Color Customization
+
+```dart
+ChatUIConfig.light().copyWith(
+  // Primary colors
+  primaryColor: Color(0xFF6366F1),           // Main brand color
+  secondaryColor: Color(0xFF8B5CF6),         // Accent color
+  
+  // Background
+  backgroundColor: Color(0xFFF8F9FA),        // Chat background
+  surfaceColor: Colors.white,                // Surface elements
+  
+  // Message bubbles
+  userMessageColor: Color(0xFF6366F1),       // User message background
+  botMessageColor: Colors.white,             // Bot message background
+  userTextColor: Colors.white,               // User message text
+  botTextColor: Color(0xFF212529),           // Bot message text
+  
+  // Input field
+  inputBackgroundColor: Color(0xFFF1F3F5),
+  inputTextColor: Color(0xFF212529),
+  inputHintColor: Color(0xFF868E96),
+  sendButtonColor: Color(0xFF6366F1),
+  
+  // App bar
+  appBarBackgroundColor: Color(0xFF6366F1),
+  appBarTextColor: Colors.white,
+  appBarIconColor: Colors.white,
+  
+  // Service cards
+  serviceCardBackgroundColor: Colors.white,
+  serviceCardTextColor: Color(0xFF212529),
+  servicePriceColor: Color(0xFF6366F1),
+)
+```
+
+#### Typography Customization
+
+```dart
+ChatUIConfig.light().copyWith(
+  appBarTitleStyle: TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.bold,
+    color: Colors.white,
+  ),
+  messageTextStyle: TextStyle(
+    fontSize: 16,
+    fontFamily: 'Roboto',
+  ),
+  inputTextStyle: TextStyle(
+    fontSize: 16,
+  ),
+  timestampStyle: TextStyle(
+    fontSize: 12,
+    color: Colors.grey,
+  ),
+  serviceCardTitleStyle: TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+  ),
+)
+```
+
+#### Dimensions & Spacing
+
+```dart
+ChatUIConfig.light().copyWith(
+  // Border radius
+  messageBorderRadius: 16.0,
+  inputBorderRadius: 24.0,
+  serviceCardBorderRadius: 12.0,
+  
+  // Padding
+  messagePadding: 12.0,
+  inputPadding: 16.0,
+  
+  // Margins
+  messageMargin: EdgeInsets.only(bottom: 12),
+  inputMargin: EdgeInsets.all(16),
+  serviceCardMargin: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+  
+  // Max width
+  messageBubbleMaxWidth: 0.75,  // 75% of screen width
+)
+```
+
+#### Animations
+
+```dart
+ChatUIConfig.light().copyWith(
+  fadeInDuration: Duration(milliseconds: 300),
+  slideInDuration: Duration(milliseconds: 400),
+  typingIndicatorDuration: Duration(milliseconds: 600),
+)
+```
+
+#### Shadow & Visual Effects
+
+```dart
+ChatUIConfig.light().copyWith(
+  messageShadow: [
+    BoxShadow(
+      color: Colors.black.withOpacity(0.1),
+      blurRadius: 4,
+      offset: Offset(0, 2),
+    ),
+  ],
+  appBarShadow: [
+    BoxShadow(
+      color: Colors.black.withOpacity(0.1),
+      blurRadius: 8,
+      offset: Offset(0, 2),
+    ),
+  ],
+  inputShadow: [
+    BoxShadow(
+      color: Colors.black.withOpacity(0.05),
+      blurRadius: 4,
+    ),
+  ],
+  useGradientForUserMessages: true,
+  useGradientForBackground: true,
+  useGradientForAppBar: true,
+  useGradientForSendButton: true,
+)
+```
+
+## Advanced Configuration
+
+### Action Buttons
+
+Add custom action buttons to handle user interactions:
+
+```dart
+SalesBotButton(
+  actionButtons: [
+    ActionButton(
+      label: 'View Details',
+      onPressed: (product) {
+        // Handle action
+      },
+    ),
+    ActionButton(
+      label: 'Book Now',
+      onPressed: (product) {
+        // Handle booking
+      },
+    ),
+  ],
+  uiConfig: ChatUIConfig.light(),
+)
+```
+
+### Error Handling
+
+Implement error handling with callbacks:
+
+```dart
+final config = SalesBotConfig(
+  projectId: 'my_project',
+  searchApis: [
+    SearchApi(
+      name: 'Service Search',
+      searchUrl: 'https://api.example.com/search',
+    ),
+  ],
+  onResult: (apiName, result) {
+    // Check for errors in result
+    if (result.containsKey('error')) {
+      print('Error from $apiName: ${result['error']}');
+    }
+  },
+);
+```
+
+
+
+## Troubleshooting
+
+### "SalesBotConfig not initialized" Error
+
+**Problem**: You see `Exception: SalesBotConfig not initialized`
+
+**Solution**: Make sure you call `SalesBotConfigManager.initialize(config)` in `main()` before `runApp()`.
+
+### Chat Button Not Appearing
+
+**Problem**: The floating action button doesn't show
+
+**Solution**: 
+- Ensure `floatingActionButton` is not null in your Scaffold
+- Check that the widget tree is properly built
+- Verify that the context is correct
+
+### API Requests Timing Out
+
+**Problem**: Search results take too long or timeout
+
+**Solution**: 
+- Increase `defaultTimeout` in `SalesBotConfig`
+- Check your API endpoint URLs
+- Verify network connectivity
+- Check the `onResult` callback for errors
+
+### UI Not Customizing
+
+**Problem**: Your `ChatUIConfig` changes aren't appearing
+
+**Solution**:
+- Make sure you're using `copyWith()` instead of creating a new config
+- Verify color values are valid
+- Check that the UI Config Manager has the config initialized
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For issues, questions, or feature requests, please open an issue on the repository.
+

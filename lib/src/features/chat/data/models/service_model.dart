@@ -712,6 +712,7 @@ class ProductItemModel {
   List<dynamic>? thumbnails;
   String? price;
   String? mrp;
+  Map<String, dynamic>? extra;
 
   ProductItemModel({
     this.id,
@@ -720,6 +721,7 @@ class ProductItemModel {
     this.thumbnails,
     this.mrp,
     this.price,
+    this.extra,
   });
 
   factory ProductItemModel.fromJson(Map<String, dynamic> json) {
@@ -730,6 +732,20 @@ class ProductItemModel {
       thumbnails: json['images'],
       price: json['price'],
       mrp: json['mrp'],
+      extra: json['extra'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['id'] = id;
+    data['title'] = title;
+    data['description'] = description;
+    data['thumbnails'] = thumbnails;
+    data['price'] = price;
+    data['mrp'] = mrp;
+    data['extra'] = extra;
+    return data;
+  }
+
 }

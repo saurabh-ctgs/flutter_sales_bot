@@ -1,4 +1,4 @@
-import 'package:flutter_sales_bot/src/features/chat/data/models/bot_response_model.dart';
+import 'package:xl_bot/src/features/chat/data/models/bot_response_model.dart';
 
 import '../../data/models/service_model.dart';
 
@@ -14,6 +14,8 @@ class MessageEntity {
   final String? searchQuery; // Store the search query for pagination
   final Extra? categoryData; // Store extracted category and items
   final dynamic selectedService; // Store selected service when action is clicked
+  final FunctionCall? functionCall; // Store function call from API
+  final Map<String, dynamic>? rawContent; // Store raw content for conversation history
 
   MessageEntity({
     required this.id,
@@ -25,5 +27,7 @@ class MessageEntity {
     this.searchQuery,
     this.categoryData,
     this.selectedService,
+    this.functionCall,
+    this.rawContent,
   });
 }
